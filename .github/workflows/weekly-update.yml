@@ -1,0 +1,85 @@
+name: Weekly HCC Site Update
+
+on:
+  # Run every Monday at 6:00 AM UTC (10pm Sunday LA time / 11pm during DST)
+  schedule:
+    - cron: "0 14 * * 1"   # 6am PDT (UTC-7) = 13:00 UTC; adjust as needed
+
+  # Allow manual trigger from the GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (print changes only, don't commit)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  update-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: write   # needed to push updated HTML back to the repo
+
+    steps:
+      # ── 1. Check out the repo ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Python ──────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── 3. Install dependencies ────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests beautifulsoup4 playwright
+
+      # ── 4. Install Playwright browser ─────────────────────────────────
+      - name: Install Playwright Chromium
+        run: playwright install --with-deps chromium
+
+      # ── 5. Run the scraper ────────────────────────────────────────────
+      - name: Run HCC scraper
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          python scraper.py \
+            --input  hollywoodcc.html \
+            --output hollywoodcc.html \
+            $DRY_RUN_FLAG
+
+      # ── 6. Commit and push the updated file ───────────────────────────
+      - name: Commit updated site
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          git config user.name  "HCC Bot"
+          git config user.email "hcc-bot@users.noreply.github.com"
+
+          # Only commit if something actually changed
+          if git diff --quiet hollywoodcc.html; then
+            echo "No changes detected — site already up to date."
+          else
+            DATE=$(date +'%Y-%m-%d')
+            git add hollywoodcc.html
+            git commit -m "chore: weekly stats update ${DATE}"
+            git push
+            echo "Site updated and pushed successfully."
+          fi
+
+      # ── 7. Summary ────────────────────────────────────────────────────
+      - name: Print summary
+        run: |
+          echo "======================================"
+          echo " HCC weekly update complete"
+          echo " Run date: $(date +'%A %B %-d, %Y')"
+          echo "======================================"
