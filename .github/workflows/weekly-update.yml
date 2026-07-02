@@ -1,9 +1,9 @@
 name: Weekly HCC Site Update
 
 on:
-  # Run every Monday at 6:00 AM UTC (10pm Sunday LA time / 11pm during DST)
+  # Run every Monday at 6:00 AM PDT (13:00 UTC)
   schedule:
-    - cron: "0 14 * * 1"   # 6am PDT (UTC-7) = 13:00 UTC; adjust as needed
+    - cron: "0 13 * * 1"
 
   # Allow manual trigger from the GitHub Actions tab
   workflow_dispatch:
@@ -23,16 +23,16 @@ jobs:
     timeout-minutes: 15
 
     permissions:
-      contents: write   # needed to push updated HTML back to the repo
+      contents: write
 
     steps:
       # ── 1. Check out the repo ──────────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2        # Node 24 compatible
 
       # ── 2. Set up Python ──────────────────────────────────────────────
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0   # Node 24 compatible
         with:
           python-version: "3.11"
 
@@ -64,8 +64,6 @@ jobs:
         run: |
           git config user.name  "HCC Bot"
           git config user.email "hcc-bot@users.noreply.github.com"
-
-          # Only commit if something actually changed
           if git diff --quiet hollywoodcc.html; then
             echo "No changes detected — site already up to date."
           else
