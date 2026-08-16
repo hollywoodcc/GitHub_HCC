@@ -1,13 +1,15 @@
 name: Weekly HCC Site Update
 
 on:
+  # Every Monday at 6am PDT (13:00 UTC)
   schedule:
-    - cron: "0 13 * * 1"   # Every Monday 6am PDT
+    - cron: "0 13 * * 1"
 
+  # Manual trigger from the Actions tab
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry run (print changes only, don't commit)"
+        description: "Dry run — print changes without committing"
         required: false
         default: "false"
         type: choice
@@ -18,7 +20,7 @@ on:
 jobs:
   update-site:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     permissions:
       contents: write
@@ -32,15 +34,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install requests beautifulsoup4 playwright
+          pip install playwright
 
       - name: Install Playwright Chromium
         run: playwright install --with-deps chromium
 
-      - name: Run HCC scraper
+      - name: Run scraper
         run: |
           DRY_RUN_FLAG=""
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
@@ -57,18 +59,17 @@ jobs:
           git config user.name  "HCC Bot"
           git config user.email "hcc-bot@users.noreply.github.com"
           if git diff --quiet hollywoodcc.html; then
-            echo "No changes detected — site already up to date."
+            echo "No changes — already up to date."
           else
-            DATE=$(date +'%Y-%m-%d')
             git add hollywoodcc.html
-            git commit -m "chore: weekly stats update ${DATE}"
+            git commit -m "chore: weekly stats update $(date +'%Y-%m-%d')"
             git push
-            echo "Site updated and pushed successfully."
+            echo "✓ Site updated and pushed."
           fi
 
-      - name: Print summary
+      - name: Summary
         run: |
-          echo "======================================"
-          echo " HCC weekly update complete"
-          echo " Run date: $(date +'%A %B %-d, %Y')"
-          echo "======================================"
+          echo "================================"
+          echo " HCC update complete"
+          echo " $(date +'%A %B %-d, %Y')"
+          echo "================================"
